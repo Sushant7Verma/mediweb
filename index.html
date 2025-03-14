@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Reminder</title>
+    <link rel="stylesheet" href="mediweb.css">
+    <link rel="icon" href="pill_icon.png">
+</head>
+<body>
+    <div class="container">
+        <h1>💊 Medicine Reminder</h1>
+        <button id="enableNotifications" class="notify-btn">Enable Notifications 🔔</button>
+
+        <div class="medicine-form">
+            <input type="text" id="medicineName" placeholder="Enter medicine name">
+            <input type="time" id="medicineTime">
+            <button id="addMedicine">Add Medicine ➕</button>
+        </div>
+
+        <ul id="medicineList"></ul>
+    </div>
+
+    <script src="mediweb.js"></script>
+</body>
+</html>
