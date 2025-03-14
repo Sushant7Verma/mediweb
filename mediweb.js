@@ -1,110 +1,135 @@
-// Default medicine list
-const defaultMedicines = [
-    { name: "Nintedanib 150MG", time: "Morning-Night", taken: false },
-    { name: "Seroflo Inhaler", time: "Morning-Night", taken: false },
-    { name: "Mycophenolate 500MG", time: "Morning-Night", taken: false },
-    { name: "Ascorbic Acid 500MG", time: "Morning", taken: false },
-    { name: "Triprolidine + Codeine", time: "PRN/SOS", taken: false },
-    { name: "Benzonatate 100MG", time: "PRN/SOS", taken: false }
-];
+document.addEventListener("DOMContentLoaded", () => {
+    const medicineTable = document.getElementById("medicineList");
+    const addMedicineBtn = document.getElementById("addMedicineBtn");
+    const medicineModal = document.getElementById("medicineModal");
+    const closeModal = document.querySelector(".close");
+    const medicineForm = document.getElementById("medicineForm");
+    const medicineNameInput = document.getElementById("medicineName");
+    const medicineTimeHourInput = document.getElementById("medicineTimeHour");
+    const medicineTimeMinuteInput = document.getElementById("medicineTimeMinute");
 
-// Load medicines from local storage
-function loadMedicines() {
-    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
-    const medicineList = document.getElementById("medicine-list");
-    medicineList.innerHTML = "";
+    // Preloaded medicines from the provided list with default time set to 12:00
+    let medicines = JSON.parse(localStorage.getItem("medicines")) || [
+        { name: "CAP NINTENA 150MG", hour: 12, minute: 0, taken: false },
+        { name: "SEROFLO INHALER", hour: 12, minute: 0, taken: false },
+        { name: "TAB MOFGEN 500MG", hour: 12, minute: 0, taken: false },
+        { name: "TAB LIMCEE 500MG", hour: 12, minute: 0, taken: false },
+        { name: "LIQ TOSSEX NEW 100ML", hour: 12, minute: 0, taken: false },
+        { name: "CAP BENZ 100MG", hour: 12, minute: 0, taken: false },
+    ];
 
-    medicines.forEach((med, index) => {
-        const div = document.createElement("div");
-        div.classList.add("medicine-item");
-        div.innerHTML = `
-            <span>${med.name} (${med.time})</span>
-            <input type="checkbox" ${med.taken ? "checked" : ""} data-index="${index}">
-            <button class="delete" data-index="${index}">🗑</button>
-        `;
-        medicineList.appendChild(div);
-    });
-
-    // Attach event listeners
-    document.querySelectorAll("input[type=checkbox]").forEach(checkbox => {
-        checkbox.addEventListener("change", toggleMedicine);
-    });
-    document.querySelectorAll(".delete").forEach(button => {
-        button.addEventListener("click", deleteMedicine);
-    });
-}
-
-// Toggle medicine taken status
-function toggleMedicine(e) {
-    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
-    const index = e.target.dataset.index;
-    medicines[index].taken = e.target.checked;
-    localStorage.setItem("medicines", JSON.stringify(medicines));
-}
-
-// Delete a medicine
-function deleteMedicine(e) {
-    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
-    const index = e.target.dataset.index;
-    medicines.splice(index, 1);
-    localStorage.setItem("medicines", JSON.stringify(medicines));
-    loadMedicines();
-}
-
-// Add new medicine
-document.getElementById("add-medicine").addEventListener("click", () => {
-    const name = prompt("Enter medicine name:");
-    const time = prompt("Enter medicine time (Morning/Night/etc.):");
-    if (name && time) {
-        const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
-        medicines.push({ name, time, taken: false });
-        localStorage.setItem("medicines", JSON.stringify(medicines));
-        loadMedicines();
-    }
-});
-
-// Reset medicines at 1:00 AM
-function resetMedicines() {
-    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
-    medicines.forEach(med => med.taken = false);
-    localStorage.setItem("medicines", JSON.stringify(medicines));
-    loadMedicines();
-}
-
-// Schedule reset at 1:00 AM
-setInterval(() => {
-    const now = new Date();
-    if (now.getHours() === 1 && now.getMinutes() === 0) {
-        resetMedicines();
-    }
-}, 60000); // Check every 1 min
-
-// Notification permission request
-document.getElementById("notifyBtn").addEventListener("click", () => {
-    Notification.requestPermission().then(permission => {
-        if (permission === "granted") {
-            new Notification("Medicine Reminder", { body: "Notifications enabled!" });
-        }
-    });
-});
-
-// Send notifications
-function sendNotification() {
-    if (Notification.permission === "granted") {
-        new Notification("Medicine Reminder", {
-            body: "Time to take your medicine 💊",
-            icon: "https://cdn-icons-png.flaticon.com/512/2921/2921822.png"
+    // Render medicines in the table
+    function renderMedicines() {
+        medicineTable.innerHTML = "";
+        medicines.forEach((med, index) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${med.name}</td>
+                <td>${String(med.hour).padStart(2, "0")}:${String(med.minute).padStart(2, "0")}</td>
+                <td>${med.taken ? "Taken" : "Not Taken"}</td>
+                <td>
+                    <button onclick="editMedicine(${index})">Edit</button> 
+                    <button onclick="deleteMedicine(${index})">Delete</button> 
+                    <button onclick="toggleTaken(${index})">${med.taken ? "Untick" : "Tick"}</button>
+                </td>`;
+            medicineTable.appendChild(row);
         });
     }
-}
 
-// Notify every morning and night
-setInterval(() => {
-    const now = new Date();
-    if ((now.getHours() === 8 || now.getHours() === 20) && now.getMinutes() === 0) {
-        sendNotification();
+    // Add or Edit Medicine
+    function saveMedicine(event) {
+        event.preventDefault();
+        const name = medicineNameInput.value.trim();
+        const hour = parseInt(medicineTimeHourInput.value);
+        const minute = parseInt(medicineTimeMinuteInput.value);
+        if (name && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+            if (medicineForm.dataset.editIndex) {
+                // Edit existing medicine
+                const index = parseInt(medicineForm.dataset.editIndex);
+                medicines[index] = { name, hour, minute, taken: false };
+                delete medicineForm.dataset.editIndex;
+            } else {
+                // Add new medicine
+                medicines.push({ name, hour, minute, taken: false });
+            }
+            localStorage.setItem("medicines", JSON.stringify(medicines));
+            renderMedicines();
+            closeModal.click();
+        }
     }
-}, 60000); // Check every 1 min
 
-// Load medicines on startup
-loadMedicines();
+    // Edit Medicine
+    window.editMedicine = function (index) {
+        const med = medicines[index];
+        medicineNameInput.value = med.name;
+        medicineTimeHourInput.value = med.hour;
+        medicineTimeMinuteInput.value = med.minute;
+        medicineForm.dataset.editIndex = index.toString();
+        document.getElementById("modalTitle").textContent = "Edit Medicine";
+        medicineModal.style.display = "block";
+    };
+
+    // Delete Medicine
+    window.deleteMedicine = function (index) {
+        medicines.splice(index, 1);
+        localStorage.setItem("medicines", JSON.stringify(medicines));
+        renderMedicines();
+    };
+
+    // Toggle Taken Status
+    window.toggleTaken = function (index) {
+        medicines[index].taken = !medicines[index].taken;
+        localStorage.setItem("medicines", JSON.stringify(medicines));
+        renderMedicines();
+    };
+
+    // Reset Taken Status at 2 AM
+    function resetTakenStatus() {
+        const now = new Date();
+        if (now.getHours() === 1 && now.getMinutes() === 40) {
+            medicines.forEach((med) => (med.taken = false));
+            localStorage.setItem("medicines", JSON.stringify(medicines));
+            renderMedicines();
+        }
+    }
+
+    // Push Notifications
+    function sendNotifications() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        medicines.forEach((med) => {
+            if (currentHour === med.hour && currentMinute === med.minute) {
+                alert(`Reminder to take your medicine "${med.name}" at ${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}.`);
+            }
+        });
+    }
+
+    // Event Listeners
+    addMedicineBtn.addEventListener("click", () => {
+        document.getElementById("modalTitle").textContent = "Add Medicine";
+        delete medicineForm.dataset.editIndex;
+        medicineForm.reset();
+        // Default values for new entries
+        medicineTimeHourInput.value = 12; // Default hour
+        medicineTimeMinuteInput.value = 0; // Default minute
+        medicineModal.style.display = "block";
+    });
+
+    closeModal.addEventListener("click", () => (medicineModal.style.display = "none"));
+
+    window.onclick = function (event) {
+        if (event.target === medicineModal) medicineModal.style.display = "none";
+    };
+
+    medicineForm.addEventListener("submit", saveMedicine);
+
+    // Initialize App
+    renderMedicines();
+
+    // Periodically check for notifications and reset status
+    setInterval(() => {
+        sendNotifications();
+        resetTakenStatus();
+    }, 60000); // Check every minute
+});
