@@ -1,93 +1,110 @@
-document.addEventListener("DOMContentLoaded", function () {
-    let medicines = [
-        { name: "CAP NINTENA 150MG", time: "08:00", taken: false },
-        { name: "SEROFLO INHALER 250", time: "08:30", taken: false },
-        { name: "TAB MOFIGEN 500MG", time: "09:00", taken: false },
-        { name: "TAB LIMCEE 500MG", time: "10:00", taken: false },
-        { name: "LIQ TOSSEX NEW 100ML", time: "18:00", taken: false },
-        { name: "CAP BENZ 100MG", time: "20:00", taken: false }
-    ];
+// Default medicine list
+const defaultMedicines = [
+    { name: "Nintedanib 150MG", time: "Morning-Night", taken: false },
+    { name: "Seroflo Inhaler", time: "Morning-Night", taken: false },
+    { name: "Mycophenolate 500MG", time: "Morning-Night", taken: false },
+    { name: "Ascorbic Acid 500MG", time: "Morning", taken: false },
+    { name: "Triprolidine + Codeine", time: "PRN/SOS", taken: false },
+    { name: "Benzonatate 100MG", time: "PRN/SOS", taken: false }
+];
 
-    const medicineList = document.getElementById("medicineList");
+// Load medicines from local storage
+function loadMedicines() {
+    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
+    const medicineList = document.getElementById("medicine-list");
+    medicineList.innerHTML = "";
 
-    function renderMedicines() {
-        medicineList.innerHTML = "";
-        medicines.forEach((med, index) => {
-            let li = document.createElement("li");
-            li.innerHTML = `
-                <span>${med.name} - ${med.time}</span>
-                <input type="checkbox" ${med.taken ? "checked" : ""} onchange="toggleTaken(${index})">
-                <button class="edit" onclick="editMedicine(${index})">✏️</button>
-                <button class="delete" onclick="deleteMedicine(${index})">❌</button>
-            `;
-            medicineList.appendChild(li);
-        });
-    }
+    medicines.forEach((med, index) => {
+        const div = document.createElement("div");
+        div.classList.add("medicine-item");
+        div.innerHTML = `
+            <span>${med.name} (${med.time})</span>
+            <input type="checkbox" ${med.taken ? "checked" : ""} data-index="${index}">
+            <button class="delete" data-index="${index}">🗑</button>
+        `;
+        medicineList.appendChild(div);
+    });
 
-    window.toggleTaken = function (index) {
-        medicines[index].taken = !medicines[index].taken;
-        saveMedicines();
-    };
+    // Attach event listeners
+    document.querySelectorAll("input[type=checkbox]").forEach(checkbox => {
+        checkbox.addEventListener("change", toggleMedicine);
+    });
+    document.querySelectorAll(".delete").forEach(button => {
+        button.addEventListener("click", deleteMedicine);
+    });
+}
 
-    window.editMedicine = function (index) {
-        let newName = prompt("Edit Medicine Name:", medicines[index].name);
-        let newTime = prompt("Edit Time (HH:MM):", medicines[index].time);
-        if (newName && newTime) {
-            medicines[index] = { name: newName, time: newTime, taken: false };
-            saveMedicines();
-        }
-    };
+// Toggle medicine taken status
+function toggleMedicine(e) {
+    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
+    const index = e.target.dataset.index;
+    medicines[index].taken = e.target.checked;
+    localStorage.setItem("medicines", JSON.stringify(medicines));
+}
 
-    window.deleteMedicine = function (index) {
-        medicines.splice(index, 1);
-        saveMedicines();
-    };
+// Delete a medicine
+function deleteMedicine(e) {
+    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
+    const index = e.target.dataset.index;
+    medicines.splice(index, 1);
+    localStorage.setItem("medicines", JSON.stringify(medicines));
+    loadMedicines();
+}
 
-    function saveMedicines() {
+// Add new medicine
+document.getElementById("add-medicine").addEventListener("click", () => {
+    const name = prompt("Enter medicine name:");
+    const time = prompt("Enter medicine time (Morning/Night/etc.):");
+    if (name && time) {
+        const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
+        medicines.push({ name, time, taken: false });
         localStorage.setItem("medicines", JSON.stringify(medicines));
-        renderMedicines();
+        loadMedicines();
     }
-
-    document.getElementById("addMedicine").addEventListener("click", function () {
-        let name = document.getElementById("medicineName").value;
-        let time = document.getElementById("medicineTime").value;
-        if (name && time) {
-            medicines.push({ name, time, taken: false });
-            saveMedicines();
-        }
-    });
-
-    document.getElementById("enableNotifications").addEventListener("click", function () {
-        Notification.requestPermission().then(permission => {
-            if (permission === "granted") {
-                alert("Notifications enabled!");
-            }
-        });
-    });
-
-    function checkMedicineTimes() {
-        let now = new Date();
-        let currentTime = now.getHours().toString().padStart(2, "0") + ":" + now.getMinutes().toString().padStart(2, "0");
-        medicines.forEach(med => {
-            if (med.time === currentTime && !med.taken) {
-                new Notification("Medicine Reminder", { body: `Time to take ${med.name}!` });
-            }
-        });
-    }
-
-    setInterval(checkMedicineTimes, 60000); // Check every minute
-
-    function resetCheckBoxes() {
-        medicines.forEach(med => med.taken = false);
-        saveMedicines();
-    }
-
-    let resetCheck = setInterval(() => {
-        let now = new Date();
-        if (now.getHours() === 0 && now.getMinutes() === 7) { // **Reset at 1:00 AM**
-            resetCheckBoxes();
-        }
-    }, 60000);
-
-    renderMedicines();
 });
+
+// Reset medicines at 1:00 AM
+function resetMedicines() {
+    const medicines = JSON.parse(localStorage.getItem("medicines")) || defaultMedicines;
+    medicines.forEach(med => med.taken = false);
+    localStorage.setItem("medicines", JSON.stringify(medicines));
+    loadMedicines();
+}
+
+// Schedule reset at 1:00 AM
+setInterval(() => {
+    const now = new Date();
+    if (now.getHours() === 1 && now.getMinutes() === 0) {
+        resetMedicines();
+    }
+}, 60000); // Check every 1 min
+
+// Notification permission request
+document.getElementById("notifyBtn").addEventListener("click", () => {
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+            new Notification("Medicine Reminder", { body: "Notifications enabled!" });
+        }
+    });
+});
+
+// Send notifications
+function sendNotification() {
+    if (Notification.permission === "granted") {
+        new Notification("Medicine Reminder", {
+            body: "Time to take your medicine 💊",
+            icon: "https://cdn-icons-png.flaticon.com/512/2921/2921822.png"
+        });
+    }
+}
+
+// Notify every morning and night
+setInterval(() => {
+    const now = new Date();
+    if ((now.getHours() === 8 || now.getHours() === 20) && now.getMinutes() === 0) {
+        sendNotification();
+    }
+}, 60000); // Check every 1 min
+
+// Load medicines on startup
+loadMedicines();
